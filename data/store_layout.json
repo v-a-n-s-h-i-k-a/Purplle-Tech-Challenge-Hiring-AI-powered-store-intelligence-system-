@@ -1,0 +1,37 @@
+{
+  "stores": [
+    {
+      "store_id": "STORE_BLR_002",
+      "city": "Bengaluru",
+      "open_hours": "09:00:00Z-22:00:00Z",
+      "cameras": [
+        {
+          "camera_id": "CAM_ENTRY_01",
+          "zones": []
+        },
+        {
+          "camera_id": "CAM_FLOOR_01",
+          "zones": [
+            {
+              "zone_id": "SKINCARE",
+              "polygon": [[0.0, 0.0], [0.5, 0.0], [0.5, 0.6], [0.0, 0.6]]
+            },
+            {
+              "zone_id": "COSMETICS",
+              "polygon": [[0.5, 0.0], [1.0, 0.0], [1.0, 0.6], [0.5, 0.6]]
+            }
+          ]
+        },
+        {
+          "camera_id": "CAM_BILLING_01",
+          "zones": [
+            {
+              "zone_id": "BILLING_ZONE",
+              "polygon": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
