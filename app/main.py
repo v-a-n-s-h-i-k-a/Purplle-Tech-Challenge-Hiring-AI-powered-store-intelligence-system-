@@ -30,6 +30,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+@app.get("/")
+async def root():
+    return {
+        "system": "Purplle AI Store Intelligence System",
+        "status": "online",
+        "documentation": "http://127.0.0.1:8000/docs",
+        "health": "http://127.0.0.1:8000/health"
+    }
+
 # ── Middleware: trace_id + structured logging ──────────────────────────────
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next):
