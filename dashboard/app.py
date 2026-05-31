@@ -344,30 +344,27 @@ with col_feed:
     st.subheader("📹 Live CCTV Processing Blueprint")
     # Draw interactive floorplan schematic using HTML
     st.markdown("""
-    <div style="background:#1e293b; border:1px solid #475569; border-radius:10px; padding:1.5rem; text-align:center; height:320px; box-shadow:inset 0 4px 12px rgba(0,0,0,0.5);">
-        <svg width="100%" height="100%" viewBox="0 0 1000 500" style="background:#0f172a; border-radius:8px;">
-            <!-- Gridlines -->
-            <defs>
-                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="1"/>
-                </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-            
-            <!-- Zones boundaries -->
-            <!-- Cosmetics Zone -->
-            <polygon points="100,100 450,100 400,360 80,360" fill="rgba(236,72,153,0.08)" stroke="#ec4899" stroke-dasharray="5,5" stroke-width="2"/>
-            <text x="120" y="80" fill="#ec4899" font-size="20" font-weight="bold">Cosmetics Zone</text>
-            
-            <!-- Checkout Zone -->
-            <polygon points="550,140 920,140 950,380 590,380" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-dasharray="5,5" stroke-width="2"/>
-            <text x="570" y="115" fill="#f97316" font-size="20" font-weight="bold">Checkout Queue</text>
-            
-            <!-- Entry Line -->
-            <line x1="80" y1="420" x2="920" y2="420" stroke="#a855f7" stroke-width="4"/>
-            <text x="420" y="450" fill="#a855f7" font-size="22" font-weight="bold">ENTRY / EXIT THRESHOLD</text>
-        </svg>
-    </div>
+<div style="background:#1e293b; border:1px solid #475569; border-radius:10px; padding:1.5rem; text-align:center; height:320px; box-shadow:inset 0 4px 12px rgba(0,0,0,0.5);">
+<svg width="100%" height="100%" viewBox="0 0 1000 500" style="background:#0f172a; border-radius:8px;">
+<!-- Gridlines -->
+<defs>
+<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+<path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="1"/>
+</pattern>
+</defs>
+<rect width="100%" height="100%" fill="url(#grid)" />
+<!-- Zones boundaries -->
+<!-- Cosmetics Zone -->
+<polygon points="100,100 450,100 400,360 80,360" fill="rgba(236,72,153,0.08)" stroke="#ec4899" stroke-dasharray="5,5" stroke-width="2"/>
+<text x="120" y="80" fill="#ec4899" font-size="20" font-weight="bold">Cosmetics Zone</text>
+<!-- Checkout Zone -->
+<polygon points="550,140 920,140 950,380 590,380" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-dasharray="5,5" stroke-width="2"/>
+<text x="570" y="115" fill="#f97316" font-size="20" font-weight="bold">Checkout Queue</text>
+<!-- Entry Line -->
+<line x1="80" y1="420" x2="920" y2="420" stroke="#a855f7" stroke-width="4"/>
+<text x="420" y="450" fill="#a855f7" font-size="22" font-weight="bold">ENTRY / EXIT THRESHOLD</text>
+</svg>
+</div>
     """, unsafe_allow_html=True)
     st.caption("Active monitoring layout blueprint. The computer vision edge nodes overlay state analytics based on this map.")
 

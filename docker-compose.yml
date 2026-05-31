@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -28,6 +26,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./app:/workspace/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   dashboard:
@@ -40,6 +40,8 @@ services:
       - api
     environment:
       API_URL: http://api:8000
+    volumes:
+      - ./dashboard:/workspace/dashboard
 
 volumes:
   pgdata:
