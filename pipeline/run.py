@@ -16,32 +16,39 @@ logger = logging.getLogger(__name__)
 
 def main():
     api_base = "http://localhost:8000"
-    store_id = "STORE_BLR_002"
+    store_id = "ST1008"
     layout_path = "data/store_layout.json"
-    pos_path = "data/pos_transactions.csv"
-    clip_path = "retail_sample.mp4"
+    
+    # Absolute paths to new resources
+    base_challenge_dir = r"c:\Users\DELL\Documents\PurplleTechChallenge"
+    pos_path = os.path.join(base_challenge_dir, "Brigade_Bangalore_10_April_26 (1)bc6219c.csv")
+    video_dir = os.path.join(base_challenge_dir, "CCTV Footage")
     
     # Check layout directory
     os.makedirs("data", exist_ok=True)
 
-    # 1. Generate synthetic video if not exists
-    logger.info("--- Step 1: Checking synthetic CCTV video clip... ---")
-    if not os.path.exists(clip_path):
-        from pipeline.synthetic_generator import generate_synthetic_video
-        generate_synthetic_video(clip_path, 25)
-    else:
-        logger.info("Found existing synthetic video clip.")
+    # 1. Verify resources exist
+    logger.info("--- Step 1: Checking resources... ---")
+    if not os.path.exists(pos_path):
+        logger.warning(f"POS CSV file '{pos_path}' not found! Ingestion might fail to compute conversion rates.")
+    if not os.path.exists(video_dir):
+        logger.error(f"CCTV Footage directory '{video_dir}' not found!")
+        sys.exit(1)
 
     # 2. Run detection pipeline for each camera
-    logger.info("--- Step 2: Running CCTV detection pipeline for all 3 store cameras... ---")
-    cameras = ["CAM_ENTRY_01", "CAM_FLOOR_01", "CAM_BILLING_01"]
+    logger.info("--- Step 2: Running CCTV detection pipeline for ST1008 store cameras... ---")
+    cameras = ["CAM 1", "CAM 2", "CAM 3", "CAM 4", "CAM 5"]
     
-    # Anchor clip starting at 09:00:00 UTC today to match daily reporting starts
-    today_start = datetime.now(timezone.utc).replace(hour=9, minute=0, second=0, microsecond=0)
-    clip_start_str = today_start.isoformat()
+    # Anchor clip starting at 19:51:00 UTC on April 10, 2026 to match POS transaction date
+    clip_start_str = "2026-04-10T19:51:00Z"
 
     for cam in cameras:
         logger.info(f"Processing camera feed: {cam} ...")
+        clip_path = os.path.join(video_dir, f"{cam}.mp4")
+        if not os.path.exists(clip_path):
+            logger.error(f"Video file '{clip_path}' does not exist!")
+            sys.exit(1)
+            
         # Run detect.py inside process
         cmd = [
             sys.executable, "pipeline/detect.py",
@@ -70,9 +77,6 @@ def main():
             "--api", api_base
         ]
         try:
-            # We override timestamps of CSV transactions to be today, to correlate with our camera events!
-            # Let's read POS CSV, adjust timestamps to today, and write to a temp file, or load_pos handles it
-            # To ensure perfect correlation, we will run load_pos on pos_transactions.csv
             subprocess.run(cmd_pos, check=True)
             logger.info("POS transaction load completed successfully.")
         except subprocess.CalledProcessError as e:

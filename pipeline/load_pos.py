@@ -30,32 +30,57 @@ def load_pos(file_path: str, api_url: str):
         for row in reader:
             # POS column layout: store_id, transaction_id, timestamp, basket_value_inr (or basket_value)
             store_id = row.get("store_id")
-            txn_id = row.get("transaction_id")
-            ts = row.get("timestamp")
             
-            # The column name might be basket_value or basket_value_inr
-            basket_val = row.get("basket_value_inr") or row.get("basket_value") or "0.0"
+            # Map transaction ID dynamically
+            txn_id = row.get("transaction_id") or row.get("order_id") or row.get("invoice_number")
+            
+            # Map timestamp dynamically
+            ts = row.get("timestamp")
+            dt = None
+            
+            if ts:
+                # Standardize timestamp to ISO8601
+                try:
+                    # Replace Z with UTC offset if present
+                    ts_iso = ts.replace('Z', '+00:00')
+                    dt = datetime.fromisoformat(ts_iso)
+                except ValueError:
+                    # If it's a raw datetime format without timezone, parse it as UTC
+                    try:
+                        dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        pass
+            elif "order_date" in row and "order_time" in row:
+                date_str = row.get("order_date")
+                time_str = row.get("order_time")
+                if date_str and time_str:
+                    # Try DD-MM-YYYY format
+                    try:
+                        dt = datetime.strptime(f"{date_str} {time_str}", "%d-%m-%Y %H:%M:%S").replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        # Try YYYY-MM-DD format
+                        try:
+                            dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                        except ValueError:
+                            pass
+            
+            # The column name might be basket_value, basket_value_inr, total_amount, GMV, or NMV
+            basket_val = (
+                row.get("basket_value_inr") 
+                or row.get("basket_value") 
+                or row.get("total_amount") 
+                or row.get("GMV") 
+                or row.get("NMV") 
+                or "0.0"
+            )
 
-            if not (store_id and txn_id and ts):
-                logger.warning(f"Skipping malformed CSV row: {row}")
+            if not (store_id and txn_id and dt):
+                logger.warning(f"Skipping malformed or unparseable CSV row: {row}")
                 continue
 
-            # Standardize timestamp to ISO8601
-            try:
-                # Replace Z with UTC offset if present
-                ts_iso = ts.replace('Z', '+00:00')
-                dt = datetime.fromisoformat(ts_iso)
-            except ValueError:
-                # If it's a raw datetime format without timezone, parse it as UTC
-                try:
-                    dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-                except ValueError:
-                    logger.warning(f"Could not parse timestamp '{ts}', skipping row.")
-                    continue
-
             transactions.append({
-                "transaction_id": txn_id,
-                "store_id": store_id,
+                "transaction_id": str(txn_id),
+                "store_id": str(store_id),
                 "timestamp": dt.isoformat(),
                 "basket_value": float(basket_val)
             })

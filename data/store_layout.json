@@ -32,6 +32,53 @@
           ]
         }
       ]
+    },
+    {
+      "store_id": "ST1008",
+      "city": "Bengaluru",
+      "open_hours": "09:00:00Z-22:00:00Z",
+      "cameras": [
+        {
+          "camera_id": "CAM 3",
+          "zones": []
+        },
+        {
+          "camera_id": "CAM 1",
+          "zones": [
+            {
+              "zone_id": "SKINCARE",
+              "polygon": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+            }
+          ]
+        },
+        {
+          "camera_id": "CAM 2",
+          "zones": [
+            {
+              "zone_id": "COSMETICS",
+              "polygon": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+            }
+          ]
+        },
+        {
+          "camera_id": "CAM 5",
+          "zones": [
+            {
+              "zone_id": "BILLING_ZONE",
+              "polygon": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+            }
+          ]
+        },
+        {
+          "camera_id": "CAM 4",
+          "zones": [
+            {
+              "zone_id": "BOH",
+              "polygon": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+            }
+          ]
+        }
+      ]
     }
   ]
 }

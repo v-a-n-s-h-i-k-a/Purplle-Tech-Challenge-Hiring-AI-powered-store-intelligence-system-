@@ -1,7 +1,10 @@
 from datetime import datetime, timezone, timedelta
 
 async def detect_anomalies(conn, store_id: str) -> dict:
-    now = datetime.now(timezone.utc)
+    latest_ts = await conn.fetchval(
+        "SELECT MAX(timestamp) FROM events WHERE store_id=$1", store_id
+    )
+    now = latest_ts if latest_ts else datetime.now(timezone.utc)
     anomalies = []
 
     # ── 1. BILLING_QUEUE_SPIKE: queue depth > 5 in last 5 min ────────────

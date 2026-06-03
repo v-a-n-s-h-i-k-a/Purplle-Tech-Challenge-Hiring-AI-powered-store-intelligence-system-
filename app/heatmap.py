@@ -2,18 +2,26 @@ from datetime import datetime, timezone, timedelta
 
 # ── Heatmap ────────────────────────────────────────────────────────────────
 async def compute_heatmap(conn, store_id: str) -> dict:
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
+    latest_ts = await conn.fetchval(
+        "SELECT MAX(timestamp) FROM events WHERE store_id=$1", store_id
     )
+    if latest_ts:
+        today_start = latest_ts.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    else:
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
     rows = await conn.fetch("""
         SELECT zone_id,
                COUNT(DISTINCT visitor_id) AS visit_count,
-               COALESCE(AVG(dwell_ms), 0) AS avg_dwell_ms,
+               COALESCE(AVG(NULLIF(dwell_ms, 0)), 0) AS avg_dwell_ms,
                COUNT(DISTINCT DATE_TRUNC('hour', timestamp)) AS active_hours
         FROM events
         WHERE store_id=$1 AND is_staff=FALSE
           AND zone_id IS NOT NULL AND timestamp >= $2
-          AND event_type IN ('ZONE_ENTER', 'ZONE_DWELL')
+          AND event_type IN ('ZONE_ENTER', 'ZONE_DWELL', 'ZONE_EXIT', 'BILLING_QUEUE_ABANDON')
         GROUP BY zone_id
     """, store_id, today_start)
 
@@ -24,7 +32,7 @@ async def compute_heatmap(conn, store_id: str) -> dict:
     max_dwell = max(r["avg_dwell_ms"] for r in rows) or 1
     total_sessions = await conn.fetchval("""
         SELECT COUNT(DISTINCT visitor_id) FROM events
-        WHERE store_id=$1 AND event_type='ENTRY' AND is_staff=FALSE AND timestamp >= $2
+        WHERE store_id=$1 AND event_type IN ('ENTRY', 'REENTRY') AND is_staff=FALSE AND timestamp >= $2
     """, store_id, today_start)
 
     zones = []

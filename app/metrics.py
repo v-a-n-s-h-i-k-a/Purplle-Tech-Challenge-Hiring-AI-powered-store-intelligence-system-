@@ -8,16 +8,24 @@ async def compute_metrics(conn, store_id: str) -> dict | None:
     if not exists:
         return None
 
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
+    latest_ts = await conn.fetchval(
+        "SELECT MAX(timestamp) FROM events WHERE store_id=$1", store_id
     )
+    if latest_ts:
+        today_start = latest_ts.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    else:
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
 
-    # Unique customer visitors today (exclude staff, count by first ENTRY)
+    # Unique customer visitors today (exclude staff, count by first ENTRY or REENTRY)
     unique_visitors = await conn.fetchval("""
         SELECT COUNT(DISTINCT visitor_id)
         FROM events
         WHERE store_id=$1
-          AND event_type='ENTRY'
+          AND event_type IN ('ENTRY', 'REENTRY')
           AND is_staff=FALSE
           AND timestamp >= $2
     """, store_id, today_start)
@@ -44,9 +52,10 @@ async def compute_metrics(conn, store_id: str) -> dict | None:
                COUNT(*) AS visits
         FROM events
         WHERE store_id=$1
-          AND event_type='ZONE_DWELL'
+          AND event_type IN ('ZONE_DWELL', 'ZONE_EXIT', 'BILLING_QUEUE_ABANDON')
           AND is_staff=FALSE
           AND zone_id IS NOT NULL
+          AND dwell_ms > 0
           AND timestamp >= $2
         GROUP BY zone_id
         ORDER BY avg_dwell_sec DESC

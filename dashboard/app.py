@@ -128,7 +128,7 @@ st.markdown("<div class='dashboard-subheader'>AI-Powered Real-Time CCTV Retail A
 # Store Selection & Auto-refresh Toggle
 col_store, col_ref = st.columns([3, 1])
 with col_store:
-    store_id = st.selectbox("🎯 SELECT INTELLIGENCE TARGET NODE:", ["STORE_BLR_002", "STORE_MUM_001", "STORE_DEL_003"], index=0)
+    store_id = st.selectbox("🎯 SELECT INTELLIGENCE TARGET NODE:", ["ST1008", "STORE_BLR_002", "STORE_MUM_001", "STORE_DEL_003"], index=0)
 with col_ref:
     auto_refresh = st.checkbox("Enable Live Telemetry Feed (2s)", value=True)
     
@@ -201,7 +201,7 @@ raw_heatmap = fetch_from_api(f"/stores/{store_id}/heatmap")
 heatmap_data = []
 if raw_heatmap and "zones" in raw_heatmap:
     for z in raw_heatmap["zones"]:
-        z_name = "Cosmetics Aisle" if "cosmetics" in z["zone_id"].lower() else ("Checkout Queue" if "billing" in z["zone_id"].lower() or "checkout" in z["zone_id"].lower() else z["zone_id"].title())
+        z_name = "Cosmetics Aisle" if "cosmetics" in z["zone_id"].lower() else ("Checkout Queue" if "billing" in z["zone_id"].lower() or "checkout" in z["zone_id"].lower() else ("Back Room" if "boh" in z["zone_id"].lower() else z["zone_id"].title()))
         heatmap_data.append({
             "zone_name": z_name,
             "average_dwell_seconds": z["avg_dwell_sec"],

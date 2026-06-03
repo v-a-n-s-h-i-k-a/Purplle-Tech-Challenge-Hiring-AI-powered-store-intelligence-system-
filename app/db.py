@@ -2,8 +2,12 @@ import os
 import asyncpg
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
+
+def normalize_query(query: str) -> str:
+    return re.sub(r'\s+', ' ', query.strip()).upper()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db:5432/storedb")
 
@@ -21,7 +25,7 @@ class InMemoryDB:
 
 class MockConnection:
     async def execute(self, query: str, *args):
-        q = query.strip().upper()
+        q = normalize_query(query)
         if "INSERT INTO POS_TRANSACTIONS" in q:
             # args: transaction_id, store_id, timestamp, basket_value
             timestamp = args[2]
@@ -37,8 +41,7 @@ class MockConnection:
         return "OK"
 
     async def fetchval(self, query: str, *args):
-        q = query.strip().replace('\n', ' ').replace('  ', ' ')
-        q_upper = q.upper()
+        q_upper = normalize_query(query)
 
         if "SELECT 1 FROM EVENTS" in q_upper:
             store_id = args[0]
@@ -79,13 +82,13 @@ class MockConnection:
 
         elif "COUNT(DISTINCT VISITOR_ID) FROM EVENTS" in q_upper:
             store_id = args[0]
-            event_type = None
-            if "EVENT_TYPE='ENTRY'" in q_upper:
-                event_type = "ENTRY"
+            event_types = None
+            if "EVENT_TYPE='ENTRY'" in q_upper or "EVENT_TYPE IN ('ENTRY', 'REENTRY')" in q_upper or "EVENT_TYPE IN ('ENTRY','REENTRY')" in q_upper:
+                event_types = ("ENTRY", "REENTRY")
             elif "EVENT_TYPE='ZONE_ENTER'" in q_upper:
-                event_type = "ZONE_ENTER"
+                event_types = ("ZONE_ENTER",)
             elif "EVENT_TYPE='BILLING_QUEUE_JOIN'" in q_upper:
-                event_type = "BILLING_QUEUE_JOIN"
+                event_types = ("BILLING_QUEUE_JOIN",)
 
             since = args[1] if len(args) > 1 else None
             until = args[2] if len(args) > 2 else None
@@ -96,9 +99,9 @@ class MockConnection:
                     continue
                 if e["is_staff"]:
                     continue
-                if event_type and e["event_type"] != event_type:
+                if event_types and e["event_type"] not in event_types:
                     continue
-                if event_type == "ZONE_ENTER":
+                if event_types == ("ZONE_ENTER",):
                     zid = e["zone_id"] or ""
                     if "entry" in zid.lower() or "exit" in zid.lower() or "billing" in zid.lower():
                         continue
@@ -160,8 +163,7 @@ class MockConnection:
         return 0
 
     async def fetch(self, query: str, *args):
-        q = query.strip().replace('\n', ' ').replace('  ', ' ')
-        q_upper = q.upper()
+        q_upper = normalize_query(query)
 
         if "SELECT ZONE_ID, ROUND(AVG(DWELL_MS)" in q_upper:
             store_id = args[0]
@@ -171,9 +173,11 @@ class MockConnection:
             for e in InMemoryDB.events:
                 if e["store_id"] != store_id:
                     continue
-                if e["event_type"] != "ZONE_DWELL":
+                if e["event_type"] not in ("ZONE_DWELL", "ZONE_EXIT", "BILLING_QUEUE_ABANDON"):
                     continue
                 if e["is_staff"]:
+                    continue
+                if e["dwell_ms"] <= 0:
                     continue
                 if e["timestamp"] < since:
                     continue
@@ -204,7 +208,7 @@ class MockConnection:
                     continue
                 if e["timestamp"] < since:
                     continue
-                if e["event_type"] not in ('ZONE_ENTER', 'ZONE_DWELL'):
+                if e["event_type"] not in ('ZONE_ENTER', 'ZONE_DWELL', 'ZONE_EXIT', 'BILLING_QUEUE_ABANDON'):
                     continue
                 zid = e["zone_id"]
                 if not zid:
@@ -255,8 +259,7 @@ class MockConnection:
         return []
 
     async def fetchrow(self, query: str, *args):
-        q = query.strip().replace('\n', ' ').replace('  ', ' ')
-        q_upper = q.upper()
+        q_upper = normalize_query(query)
 
         if "BILLING_QUEUE_JOIN" in q_upper:
             store_id = args[0]

@@ -6,14 +6,22 @@ async def compute_funnel(conn, store_id: str) -> dict:
     Unit is SESSION (not raw events). Re-entries are deduplicated —
     a visitor_id counts once in each funnel stage regardless of re-entries.
     """
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
+    latest_ts = await conn.fetchval(
+        "SELECT MAX(timestamp) FROM events WHERE store_id=$1", store_id
     )
+    if latest_ts:
+        today_start = latest_ts.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    else:
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
 
-    # Stage 1: unique customer sessions (distinct visitor_id with ENTRY today)
+    # Stage 1: unique customer sessions (distinct visitor_id with ENTRY or REENTRY today)
     entered = await conn.fetchval("""
         SELECT COUNT(DISTINCT visitor_id) FROM events
-        WHERE store_id=$1 AND event_type='ENTRY'
+        WHERE store_id=$1 AND event_type IN ('ENTRY', 'REENTRY')
           AND is_staff=FALSE AND timestamp >= $2
     """, store_id, today_start)
 

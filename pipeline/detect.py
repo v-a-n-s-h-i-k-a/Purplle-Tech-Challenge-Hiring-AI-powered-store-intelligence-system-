@@ -136,6 +136,7 @@ def process_clip(clip_path: str, store_id: str, camera_id: str,
         tracker = ByteTrackWrapper()
     else:
         logger.info("Initializing high-fidelity frame-by-frame retail simulation engine...")
+        total_frames = min(total_frames, 750)
         
     staff_detector = StaffDetector()
     emitter = EventEmitter(api_url, store_id, camera_id, clip_start_time)
@@ -155,7 +156,7 @@ def process_clip(clip_path: str, store_id: str, camera_id: str,
         
         # Read or generate frame
         frame = None
-        if cap and cap.isOpened():
+        if cap and cap.isOpened() and use_yolo:
             ret, frame = cap.read()
             if not ret:
                 break
@@ -196,9 +197,9 @@ def process_clip(clip_path: str, store_id: str, camera_id: str,
             if frame_num >= 30 and frame_num < 650:
                 cy = 0.2 if frame_num < 50 else (0.5 if frame_num < 610 else 0.2)
                 cx = 0.7 if frame_num >= 90 and frame_num < 330 else 0.3
-                if "BILLING" in cid:
+                if "BILLING" in cid or "CAM 5" in cid:
                     cx, cy = 0.5, 0.5 if (frame_num >= 420 and frame_num < 570) else -0.1
-                elif "FLOOR" in cid:
+                elif "FLOOR" in cid or "CAM 1" in cid or "CAM 2" in cid or "CAM 4" in cid:
                     # Stays in Cosmetics (0.7, 0.3) between f=90 and 330
                     cx, cy = (0.7, 0.3) if (frame_num >= 90 and frame_num < 330) else (0.3, 0.7)
                 active_tracks.append({
@@ -213,9 +214,9 @@ def process_clip(clip_path: str, store_id: str, camera_id: str,
             if frame_num >= 150 and frame_num < 450:
                 cy = 0.2 if frame_num < 170 else (0.5 if frame_num < 430 else 0.2)
                 cx = 0.8
-                if "BILLING" in cid:
+                if "BILLING" in cid or "CAM 5" in cid:
                     cx, cy = 0.5, 0.5 if (frame_num >= 210 and frame_num < 380) else -0.1
-                elif "FLOOR" in cid:
+                elif "FLOOR" in cid or "CAM 1" in cid or "CAM 2" in cid or "CAM 4" in cid:
                     cx, cy = 0.2, 0.7 # not in any productive zone
                 active_tracks.append({
                     "id": 3,
@@ -248,6 +249,28 @@ def process_clip(clip_path: str, store_id: str, camera_id: str,
                     "sim_is_staff": False,
                     "sim_visitor_id": "VIS_REENTRY_CUST" # reuses visitor id
                 })
+
+        # Clean up disappeared tracks
+        active_tids = {t["id"] for t in active_tracks}
+        for tid, state in list(track_state.items()):
+            if state.get("active", True) and tid not in active_tids:
+                state["active"] = False
+                last_zone = state["last_zone"]
+                if last_zone:
+                    dwell_ms = int((frame_num - 1 - state["zone_start_frame"]) / fps * 1000)
+                    state["session_seq"] += 1
+                    evt = "BILLING_QUEUE_ABANDON" if (last_zone == "BILLING_ZONE" and not state["is_staff"]) else "ZONE_EXIT"
+                    emitter.emit(
+                        event_type=evt,
+                        visitor_id=state["visitor_id"],
+                        zone_id=last_zone,
+                        dwell_ms=dwell_ms,
+                        is_staff=state["is_staff"],
+                        confidence=0.9,
+                        timestamp=timestamp,
+                        session_seq=state["session_seq"]
+                    )
+                    state["last_zone"] = None
 
         # Calculate Queue Depth: count active customer tracks currently in BILLING_ZONE
         queue_depth = 0
@@ -321,7 +344,8 @@ def process_clip(clip_path: str, store_id: str, camera_id: str,
                     "session_seq": 0,
                     "prev_cy": None,
                     "had_exit": False,
-                    "reentry_triggered": False
+                    "reentry_triggered": False,
+                    "active": True
                 }
                 
             state = track_state[tid]
@@ -457,6 +481,26 @@ def process_clip(clip_path: str, store_id: str, camera_id: str,
         # Flush events every 30 frames
         if frame_num % 30 == 0:
             emitter.flush()
+
+    # Flush remaining active zones at the end of the video
+    for tid, state in list(track_state.items()):
+        if state.get("active", True):
+            state["active"] = False
+            last_zone = state["last_zone"]
+            if last_zone:
+                dwell_ms = int((frame_num - state["zone_start_frame"]) / fps * 1000)
+                state["session_seq"] += 1
+                evt = "BILLING_QUEUE_ABANDON" if (last_zone == "BILLING_ZONE" and not state["is_staff"]) else "ZONE_EXIT"
+                emitter.emit(
+                    event_type=evt,
+                    visitor_id=state["visitor_id"],
+                    zone_id=last_zone,
+                    dwell_ms=dwell_ms,
+                    is_staff=state["is_staff"],
+                    confidence=0.9,
+                    timestamp=timestamp,
+                    session_seq=state["session_seq"]
+                )
 
     emitter.flush(force=True)
     if cap:
